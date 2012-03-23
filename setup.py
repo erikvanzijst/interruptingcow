@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Installs gunicorn_alarma.
+# Installs interruptingcow.
 
 import os, sys
 from distutils.core import setup
@@ -25,12 +25,12 @@ setup(
         'Topic :: Utilities',
     ],
     description='A watchdog for Gunicorn that interrupts long running requests.',
-    download_url='https://bitbucket.org/evzijst/gunicorn_alarma/downloads/gunicorn_alarma-0.1.tar.gz',
+    download_url='https://bitbucket.org/evzijst/interruptingcow/downloads/interruptingcow-0.1.tar.gz',
     keywords='gunicorn debug watchdog interrupt',
     license='GNU LGPL',
     long_description=long_description(),
-    name='gunicorn_alarma',
-    packages=['gunicorn_alarma'],
-    url='https://bitbucket.org/evzijst/gunicorn_alarma',
+    name='interruptingcow',
+    packages=['interruptingcow'],
+    url='https://bitbucket.org/evzijst/interruptingcow',
     version='0.1',
 )
