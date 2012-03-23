@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from functools import wraps
 import signal
 
 _timeout = 0.0
@@ -19,8 +18,8 @@ def start_watchdog(timeout=25):
 
     elif signal.getsignal(signal.SIGALRM) != signal.SIG_DFL:
         raise StateException('Your process alarm handler is already in use! '
-              'Interruptingcow is not reentrant and not compatible with programs that '
-              'use SIGALRM.')
+                             'Interruptingcow is not reentrant and not '
+                             'compatible with programs that use SIGALRM.')
     else:
         global _timeout
         _timeout = int(timeout)
