@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Installs django_alarma.
+# Installs gunicorn_alarma.
 
 import os, sys
 from distutils.core import setup
@@ -14,23 +14,23 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Framework :: Django',
+        'Intended Audience :: System Administrators',
         'Intended Audience :: Developers',
         'License :: OSI Approved :: GNU Library or Lesser General Public License (LGPL)',
         'Natural Language :: English',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2.5',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Topic :: Software Development :: Debuggers',
+        'Topic :: System :: Monitoring',
         'Topic :: Utilities',
     ],
-    description='A Django middleware that interrupts long running requests.',
-    download_url='https://bitbucket.org/evzijst/django_alarma/downloads/django_alarma-0.1.tar.gz',
-    keywords='django debug watchdog middleware interrupt',
+    description='A watchdog for Gunicorn that interrupts long running requests.',
+    download_url='https://bitbucket.org/evzijst/gunicorn_alarma/downloads/gunicorn_alarma-0.1.tar.gz',
+    keywords='gunicorn debug watchdog interrupt',
     license='GNU LGPL',
     long_description=long_description(),
-    name='django_alarma',
-    packages=['django_alarma'],
-    url='https://bitbucket.org/evzijst/django_alarma',
+    name='gunicorn_alarma',
+    packages=['gunicorn_alarma'],
+    url='https://bitbucket.org/evzijst/gunicorn_alarma',
     version='0.1',
 )
