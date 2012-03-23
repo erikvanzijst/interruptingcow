@@ -24,7 +24,7 @@ setup(
         'Topic :: Utilities',
     ],
     description='A watchdog that interrupts long running code.',
-    download_url='https://bitbucket.org/evzijst/interruptingcow/downloads/interruptingcow-0.1.tar.gz',
+    download_url='https://bitbucket.org/evzijst/interruptingcow/downloads/interruptingcow-0.2.tar.gz',
     keywords='debug watchdog timer interrupt',
     license='GNU LGPL',
     long_description=long_description(),
