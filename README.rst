@@ -10,14 +10,15 @@ Overview
 Interruptingcow is a generic utility can relatively gracefully interrupt your
 Python code when it doesn't execute within a specific number of seconds:
 
-  from interruptingcow import interruptingcow, InterruptedException
+    :::python
+    from interruptingcow import interruptingcow, InterruptedException
 
-  try:
-    with interruptingcow(timeout=5):
-      # perform a potentially very slow operation
-      pass
-  except InterruptedException:
-    print "didn't finish within 5 seconds"
+    try:
+        with interruptingcow(timeout=5):
+        # perform a potentially very slow operation
+        pass
+    except InterruptedException:
+        print "didn't finish within 5 seconds"
 
 
 Installation
