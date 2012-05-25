@@ -2,49 +2,65 @@ import time
 import threading
 import unittest
 
-from interruptingcow import start_watchdog, stop_watchdog, interruptingcow
-from interruptingcow import InterruptedException, StateException
+from interruptingcow import timeout, StateException
 
 class TestInterrupt(unittest.TestCase):
 
-    def tearDown(self):
-        stop_watchdog()
-
     def test_interrupt(self):
-        start_watchdog(timeout=1)
-        self.assertRaises(InterruptedException, time.sleep, 2)
-
-    def test_stop_watchdog(self):
-        """Verify that stop_watchdog() really cancels the alarm."""
-        start_watchdog(timeout=1)
-        stop_watchdog()
-        time.sleep(1.5)
-
-    def test_contextmanager(self):
-        try:
-            with interruptingcow(timeout=1):
-                time.sleep(1.5)
-                self.fail('interrupt failed')
-        except InterruptedException:
-            pass
+        with timeout(0.5):
+            self.assertRaises(RuntimeError, time.sleep, 2)
 
     def test_contextmanager_cancels_properly(self):
-        with interruptingcow(timeout=1):
+        """Verify that alarms get properly canceled."""
+        with timeout(0.5):
             pass
-        time.sleep(1.5)
+        time.sleep(1)
+
+class Outer(RuntimeError):
+    pass
+
+class Inner(RuntimeError):
+    pass
 
 class TestReentrancy(unittest.TestCase):
 
-    def tearDown(self):
-        stop_watchdog()
+    def test_reentrancy_without_expiration(self):
+        with timeout(1):
+            with timeout(1):
+                pass
+        time.sleep(1.5)
 
-    def test_reentrancy(self):
-        start_watchdog()
+    def test_inner_timeout(self):
+
+        with timeout(1, Outer):
+            with timeout(0.1, Inner):
+                self.assertRaises(Inner, time.sleep, 2)
+        time.sleep(1.5)
+
+    def test_outer_timeout(self):
+        with timeout(1, Outer):
+            with timeout(0.1, Inner):
+                pass
+            self.assertRaises(Outer, time.sleep, 2)
+        time.sleep(1.5)
+
+    def test_suppressed_inner(self):
         try:
-            start_watchdog()
-            self.fail('Should not allow reentrancy')
-        except StateException:
+            with timeout(1, Outer):
+                with timeout(1.1, Inner):
+                    time.sleep(2)
+        except Outer:
             pass
+        time.sleep(1.5)
+
+class TestValidation(unittest.TestCase):
+    def test_timeout_value(self):
+
+        def test(seconds):
+            with timeout(seconds):
+                pass
+        self.assertRaises(ValueError, test, 0)
+        self.assertRaises(ValueError, test, -1)
 
 class TestThreading(unittest.TestCase):
 
@@ -54,7 +70,8 @@ class TestThreading(unittest.TestCase):
 
         def run():
             try:
-                start_watchdog()
+                with timeout(1):
+                    pass
             except StateException:
                 self.fail = False
 

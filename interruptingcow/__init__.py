@@ -1,59 +1,65 @@
-from contextlib import contextmanager
 import signal
-
-_timeout = 0.0
-
-class InterruptedException(Exception):
-    def __init__(self, timeout):
-        super(InterruptedException, self).__init__()
-        self.timeout = timeout
+import threading
+import time
+from collections import namedtuple
+from contextlib import contextmanager
 
 class StateException(Exception):
     pass
 
-def start_watchdog(timeout=25):
+def _bootstrap():
 
-    if int(timeout) <= 0:
-        raise ValueError('Use a timeout value greater than 0')
+    Timer = namedtuple('Timer', 'expiration exception')
+    timers = []
 
-    elif signal.getsignal(signal.SIGALRM) != signal.SIG_DFL:
-        raise StateException('Your process alarm handler is already in use! '
-                             'Interruptingcow is not reentrant and not '
-                             'compatible with programs that use SIGALRM.')
-    else:
-        global _timeout
-        _timeout = int(timeout)
-        def handler(signum, frame):
+    def handler(*args):
+        exception = timers.pop().exception
+        if timers:
+            timeleft = timers[-1].expiration - time.time()
+            if timeleft > 0:
+                signal.setitimer(signal.ITIMER_REAL, timeleft)
+            else:
+                handler(*args)
+
+        raise exception
+
+    @contextmanager
+    def timeout(seconds, exception=RuntimeError):
+        if seconds <= 0:
+            raise ValueError('Invalid timeout: %s' % seconds)
+        if threading.currentThread().name != 'MainThread':
+            raise StateException('Timeouts can only be set on the MainThread')
+
+        depth = len(timers)
+        timeleft = signal.getitimer(signal.ITIMER_REAL)[0]
+        if not timers or timeleft > seconds:
             try:
-                stop_watchdog()
-            except Exception:
-                pass
+                signal.setitimer(signal.ITIMER_REAL, seconds)
+                timers.append(Timer(time.time() + seconds, exception))
+                yield
             finally:
-                raise InterruptedException(_timeout)
-
-        try:
-            signal.signal(signal.SIGALRM, handler)
-        except ValueError:
-            raise StateException('Unable to register SIGARLM handler')
+                if len(timers) > depth:
+                    # cancel our timer
+                    signal.setitimer(signal.ITIMER_REAL, 0)
+                    timers.pop()
+                    if timers:
+                        # reinstall the parent timer
+                        timeleft = timers[-1].expiration - time.time()
+                        if timeleft > 0:
+                            signal.setitimer(signal.ITIMER_REAL, timeleft)
+                        else:
+                            # the parent timer has expired, trigger the handler
+                            handler()
         else:
-            signal.alarm(_timeout)
+            # not enough time left on the parent timer
+            yield
 
-def stop_watchdog():
+    if signal.getsignal(signal.SIGALRM) != signal.SIG_DFL:
+        raise StateException('Your process alarm handler is already in use! '
+                             'Interruptingcow cannot be used in programs that '
+                             'use SIGALRM.')
+    else:
+        signal.signal(signal.SIGALRM, handler)
+        return timeout
 
-    global _timeout
-    if _timeout:
-        try:
-            # reset signal handler
-            signal.signal(signal.SIGALRM, signal.SIG_DFL)
-            signal.alarm(0)
-        finally:
-            _timeout = None
-
-@contextmanager
-def interruptingcow(timeout=25):
-
-    start_watchdog(timeout=timeout)
-    try:
-        yield
-    finally:
-        stop_watchdog()
+timeout = _bootstrap()
