@@ -1,3 +1,6 @@
+import os
+import re
+import tempfile
 import time
 import threading
 import unittest
@@ -9,6 +12,43 @@ class TestInterrupt(unittest.TestCase):
     def test_interrupt(self):
         with timeout(0.5):
             self.assertRaises(RuntimeError, time.sleep, 2)
+
+    def test_regex(self):
+        with timeout(.5):
+            self.assertRaises(RuntimeError, re.match,
+                r'(a+)+$', 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!')
+
+    def test_busy_loop(self):
+        try:
+            with timeout(0.5):
+                while True:
+                    pass
+        except RuntimeError:
+            pass
+        else:
+            self.fail('busy loop failed to interrupt')
+
+    def test_IO_interrupt(self):
+        """Make sure os.read() does not swallow our interruption."""
+        with tempfile.NamedTemporaryFile() as tf:
+            fname = tf.name
+        os.mkfifo(fname)
+
+        def writer():
+            with open(fname, 'w'):
+                time.sleep(2)
+        threading.Thread(target=writer).start()
+
+        try:
+            fd = os.open(fname, os.O_RDONLY)
+            try:
+                with timeout(0.5):
+                    os.read(fd, 1024)
+                    self.fail('interrupt failed')
+            except RuntimeError:
+                pass
+        finally:
+            os.unlink(fname)
 
     def test_contextmanager_cancels_properly(self):
         """Verify that alarms get properly canceled."""
