@@ -23,7 +23,7 @@ def _bootstrap():
 
         raise exception
 
-    def _timeout(seconds, exception):
+    def timeout(seconds, exception):
         if seconds <= 0:
             raise ValueError('Invalid timeout: %s' % seconds)
         if threading.currentThread().name != 'MainThread':
@@ -67,7 +67,7 @@ def _bootstrap():
             self._exception = exception
 
         def __enter__(self):
-            self.gen = _timeout(self._seconds, self._exception)
+            self.gen = timeout(self._seconds, self._exception)
             return super(Timeout, self).__enter__()
 
         def __call__(self, func):
