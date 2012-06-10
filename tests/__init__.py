@@ -7,6 +7,9 @@ import unittest
 
 from interruptingcow import timeout, StateException
 
+class TimeoutError(Exception):
+    pass
+
 class TestInterrupt(unittest.TestCase):
 
     def test_interrupt(self):
@@ -119,6 +122,19 @@ class TestThreading(unittest.TestCase):
         t.start()
         t.join()
         self.assertFalse(self.fail)
+
+@timeout(.5, exception=TimeoutError)
+def sleep(seconds):
+    time.sleep(seconds)
+
+class TestDecorator(unittest.TestCase):
+
+    def test_decorator_with_expiration(self):
+        self.assertRaises(TimeoutError, sleep, 1)
+
+    def test_decorator_without_expiration(self):
+        sleep(.1)
+        time.sleep(0.5) # make sure there's no delayed timeout
 
 if __name__ == '__main__':
     unittest.main()

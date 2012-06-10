@@ -2,7 +2,7 @@ import signal
 import threading
 import time
 from collections import namedtuple
-from contextlib import contextmanager
+from contextlib import GeneratorContextManager
 
 class StateException(Exception):
     pass
@@ -23,8 +23,7 @@ def _bootstrap():
 
         raise exception
 
-    @contextmanager
-    def timeout(seconds, exception=RuntimeError):
+    def _timeout(seconds, exception):
         if seconds <= 0:
             raise ValueError('Invalid timeout: %s' % seconds)
         if threading.currentThread().name != 'MainThread':
@@ -54,12 +53,35 @@ def _bootstrap():
             # not enough time left on the parent timer
             yield
 
+    class Timeout(GeneratorContextManager):
+        """This class allows us to use timeout() both as an inline
+        with-statement, as well as a function decorator.
+
+        To this end, it implements both the contextmanager's __enter__() and
+        __exit__() methods, as well as the function decorator class' __call__()
+        method.
+        """
+        def __init__(self, seconds, exception=RuntimeError):
+            super(Timeout, self).__init__(None)
+            self._seconds = seconds
+            self._exception = exception
+
+        def __enter__(self):
+            self.gen = _timeout(self._seconds, self._exception)
+            return super(Timeout, self).__enter__()
+
+        def __call__(self, func):
+            def inner(*args, **kwargs):
+                with self:
+                    return func(*args, **kwargs)
+            return inner
+
     if signal.getsignal(signal.SIGALRM) != signal.SIG_DFL:
         raise StateException('Your process alarm handler is already in use! '
                              'Interruptingcow cannot be used in programs that '
                              'use SIGALRM.')
     else:
         signal.signal(signal.SIGALRM, handler)
-        return timeout
+        return Timeout
 
 timeout = _bootstrap()
