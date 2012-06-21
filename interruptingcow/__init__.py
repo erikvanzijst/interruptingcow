@@ -23,11 +23,22 @@ def _bootstrap():
 
         raise exception
 
+    def set_sighandler():
+        current = signal.getsignal(signal.SIGALRM)
+        if current == signal.SIG_DFL:
+            signal.signal(signal.SIGALRM, handler)
+        elif current != handler:
+            raise StateException('Your process alarm handler is already in '
+                                 'use! Interruptingcow cannot be used in '
+                                 'programs that use SIGALRM.')
+
     def timeout(seconds, exception):
         if seconds <= 0:
             raise ValueError('Invalid timeout: %s' % seconds)
         if threading.currentThread().name != 'MainThread':
-            raise StateException('Timeouts can only be set on the MainThread')
+            raise StateException('Interruptingcow can only be used from the '
+                                 'MainThread.')
+        set_sighandler()
 
         depth = len(timers)
         timeleft = signal.getitimer(signal.ITIMER_REAL)[0]
@@ -76,12 +87,6 @@ def _bootstrap():
                     return func(*args, **kwargs)
             return inner
 
-    if signal.getsignal(signal.SIGALRM) != signal.SIG_DFL:
-        raise StateException('Your process alarm handler is already in use! '
-                             'Interruptingcow cannot be used in programs that '
-                             'use SIGALRM.')
-    else:
-        signal.signal(signal.SIGALRM, handler)
-        return Timeout
+    return Timeout
 
 timeout = _bootstrap()
