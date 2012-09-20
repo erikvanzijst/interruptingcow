@@ -67,6 +67,32 @@ above examples, as well as function decorator::
             pass
 
 
+Quotas
+------
+
+You can allocate a quota of time and then share it across multiple invocations
+to ``timeout()``. This is especially useful if you need to use timeouts inside
+a loop::
+
+    from interruptingcow import timeout, Quota
+
+    quota = Quota(1.0)
+    for i in something:
+        try:
+            with timeout(quota, RuntimeError):
+                # perform a slow operation
+                pass
+        except RuntimeError:
+            # do a cheaper thing instead
+
+Here the first iterations of the loop will be able to perform the expensive
+operation, until the shared quota of 1 second runs out and then the remaining
+iterations will perform the cheaper alternative.
+
+A single quota instance can also be shared across all calls to ``timeout()``
+your application makes (including nested calls), to give place an upper bound
+on the total runtime, regardless of how many calls to ``timeout()`` you have.
+
 Caveats
 -------
 

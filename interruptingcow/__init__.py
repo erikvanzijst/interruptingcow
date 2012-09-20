@@ -7,6 +7,35 @@ from contextlib import GeneratorContextManager
 class StateException(Exception):
     pass
 
+class Quota(object):
+    def __init__(self, seconds):
+        if seconds <= 0:
+            raise ValueError('Invalid timeout: %s' % seconds)
+        else:
+            self._timeleft = seconds
+        self._depth = 0
+        self._starttime = None
+
+    def _start(self):
+        if self._depth is 0:
+            self._starttime = time.time()
+        self._depth += 1
+
+    def _stop(self):
+        if self._depth is 1:
+            self._timeleft = self.remaining()
+            self._starttime = None
+        self._depth -= 1
+
+    def running(self):
+        return self._depth > 0
+
+    def remaining(self):
+        if self.running():
+            return self._timeleft - (time.time() - self._starttime)
+        else:
+            return self._timeleft
+
 def _bootstrap():
 
     Timer = namedtuple('Timer', 'expiration exception')
@@ -33,36 +62,47 @@ def _bootstrap():
                                  'programs that use SIGALRM.')
 
     def timeout(seconds, exception):
-        if seconds <= 0:
-            raise ValueError('Invalid timeout: %s' % seconds)
         if threading.currentThread().name != 'MainThread':
             raise StateException('Interruptingcow can only be used from the '
                                  'MainThread.')
+        if isinstance(seconds, Quota):
+            quota = seconds
+        elif seconds <= 0:
+            raise ValueError('Invalid timeout: %s' % seconds)
+        else:
+            quota = Quota(seconds)
         set_sighandler()
+        seconds = quota.remaining()
 
         depth = len(timers)
-        timeleft = signal.getitimer(signal.ITIMER_REAL)[0]
-        if not timers or timeleft > seconds:
+        parenttimeleft = signal.getitimer(signal.ITIMER_REAL)[0]
+        if not timers or parenttimeleft > seconds:
             try:
+                quota._start()
                 signal.setitimer(signal.ITIMER_REAL, seconds)
                 timers.append(Timer(time.time() + seconds, exception))
                 yield
             finally:
+                quota._stop()
                 if len(timers) > depth:
                     # cancel our timer
                     signal.setitimer(signal.ITIMER_REAL, 0)
                     timers.pop()
                     if timers:
                         # reinstall the parent timer
-                        timeleft = timers[-1].expiration - time.time()
-                        if timeleft > 0:
-                            signal.setitimer(signal.ITIMER_REAL, timeleft)
+                        parenttimeleft = timers[-1].expiration - time.time()
+                        if parenttimeleft > 0:
+                            signal.setitimer(signal.ITIMER_REAL, parenttimeleft)
                         else:
                             # the parent timer has expired, trigger the handler
                             handler()
         else:
             # not enough time left on the parent timer
-            yield
+            try:
+                quota._start()
+                yield
+            finally:
+                quota._stop()
 
     class Timeout(GeneratorContextManager):
         """This class allows us to use timeout() both as an inline

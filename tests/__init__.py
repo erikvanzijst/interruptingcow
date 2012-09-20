@@ -5,7 +5,7 @@ import time
 import threading
 import unittest
 
-from interruptingcow import timeout, StateException
+from interruptingcow import timeout, Quota, StateException
 
 class TimeoutError(Exception):
     pass
@@ -138,3 +138,79 @@ class TestDecorator(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class TestQuota(unittest.TestCase):
+    def test_remaining(self):
+        q = Quota(1)
+        self.assertEquals(1, q.remaining())
+
+        q._start()
+        self.assertTrue(q.running())
+        time.sleep(0.5)
+        q._stop()
+
+        self.assertFalse(q.running())
+        self.assertLessEqual(q.remaining(), 0.5)
+
+    def test_nesting(self):
+        q = Quota(1)
+
+        q._start()
+        self.assertTrue(q.running())
+        q._start()
+        self.assertTrue(q.running())
+        time.sleep(0.5)
+        q._stop()
+        self.assertTrue(q.running())
+        q._stop()
+        self.assertFalse(q.running())
+
+        self.assertLessEqual(q.remaining(), 0.5)
+
+    def test_continuation(self):
+        q = Quota(1)
+
+        q._start()
+        q._stop()
+        time.sleep(0.2)
+        q._start()
+        q._stop()
+
+        # tolerate a little time spent outside the sleep:
+        self.assertGreater(q.remaining(), 0.9)
+
+class TestQuotaTimeouts(unittest.TestCase):
+    def test_timeout(self):
+        q = Quota(1)
+        with timeout(q, RuntimeError):
+            time.sleep(0.2)
+        self.assertTrue(0.75 < q.remaining() <= 0.8)
+        time.sleep(1)
+        self.assertTrue(0.75 < q.remaining() <= 0.8)
+        with timeout(q, RuntimeError):
+            time.sleep(0.2)
+        self.assertTrue(0.55 < q.remaining() <= 0.6)
+
+        try:
+            with timeout(q, RuntimeError):
+                time.sleep(0.7)
+            self.fail()
+        except RuntimeError:
+            pass
+
+
+    def test_nesting(self):
+        q1 = Quota(0.5)
+        q2 = Quota(1)
+
+        try:
+            with timeout(q1, Outer):
+                with timeout(q2, Inner):
+                    time.sleep(1)
+            self.fail()
+        except Outer:
+            self.assertFalse(q1.running())
+            self.assertLessEqual(q1.remaining(), 0.05)
+
+            self.assertFalse(q2.running())
+            self.assertTrue(0.45 < q2.remaining() <= 0.5)
