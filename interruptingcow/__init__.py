@@ -32,9 +32,9 @@ class Quota(object):
 
     def remaining(self):
         if self.running():
-            return self._timeleft - (time.time() - self._starttime)
+            return max(self._timeleft - (time.time() - self._starttime), 0)
         else:
-            return self._timeleft
+            return max(self._timeleft, 0)
 
 def _bootstrap():
 
@@ -67,8 +67,6 @@ def _bootstrap():
                                  'MainThread.')
         if isinstance(seconds, Quota):
             quota = seconds
-        elif seconds <= 0:
-            raise ValueError('Invalid timeout: %s' % seconds)
         else:
             quota = Quota(seconds)
         set_sighandler()
@@ -79,9 +77,12 @@ def _bootstrap():
         if not timers or parenttimeleft > seconds:
             try:
                 quota._start()
-                signal.setitimer(signal.ITIMER_REAL, seconds)
                 timers.append(Timer(time.time() + seconds, exception))
-                yield
+                if seconds > 0:
+                    signal.setitimer(signal.ITIMER_REAL, seconds)
+                    yield
+                else:
+                    handler()
             finally:
                 quota._stop()
                 if len(timers) > depth:
