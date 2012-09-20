@@ -16,6 +16,9 @@ class Quota(object):
         self._depth = 0
         self._starttime = None
 
+    def __str__(self):
+        return '<Quota remaining=%s>' % self.remaining()
+
     def _start(self):
         if self._depth is 0:
             self._starttime = time.time()
