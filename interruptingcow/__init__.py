@@ -71,7 +71,7 @@ def _bootstrap():
         if isinstance(seconds, Quota):
             quota = seconds
         else:
-            quota = Quota(seconds)
+            quota = Quota(float(seconds))
         set_sighandler()
         seconds = quota.remaining()
 
