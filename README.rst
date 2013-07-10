@@ -1,8 +1,8 @@
 Interrupting Cow
 ================
 
-Interruptingcow is a generic utility can relatively gracefully interrupt your
-Python code when it doesn't execute within a specific number of seconds::
+Interruptingcow is a generic utility that can relatively gracefully interrupt
+your Python code when it doesn't execute within a specific number of seconds::
 
     from interruptingcow import timeout
 
